@@ -1,0 +1,412 @@
+from datetime import datetime, date, time
+
+from loguru import logger
+import requests
+from pydantic import BaseModel, ValidationError, Field
+
+from app import config
+
+
+class Orders(BaseModel):
+    id: str
+    done_at: str = None
+    created_at: str
+    status: dict
+    custom_fields: dict
+    id_label: str
+
+
+class ListOrders(BaseModel):
+    data: list[Orders]
+    count_orders: int = Field(alias='count')
+
+
+def get_token():
+    page_token = requests.post('https://api.remonline.ru/token/new', {'api_key': config.API_KEY}).json()
+    try:
+        token = page_token.get('token')
+    except Exception as e:
+        logger.error(e)
+        return
+    return token
+
+
+def get_page_orders(page: int, token: str, statuses: list):
+    orders_row = requests.get('https://api.remonline.ru/order/', {"token": token, 'statuses[]': statuses, 'page': page})
+    if orders_row.status_code != 200:
+        return 'token_invalid'
+    try:
+        orders = ListOrders.parse_raw(orders_row.text)
+    except ValidationError as e:
+        logger.error(f'Exception: {e}')
+        return
+    return orders
+
+
+def get_count_pages(count_orders: int):
+    count_pages = int(count_orders / 50) + 1
+    return count_pages
+
+
+def check_date_today(date_check):
+    if date_check is None:
+        return False
+    get_date = map(int, date_check.split('.'))
+    need_date = date(day=next(get_date), month=next(get_date), year=next(get_date))
+    if need_date != date.today():
+        return False
+    return True
+
+
+def check_date_tomorrow(date_row):
+    if date_row is None:
+        return False
+    list_date = map(int, date_row.split('.'))
+    check_date = date(day=next(list_date), month=next(list_date), year=next(list_date))
+    if check_date < date.today():
+        return False
+    return True
+
+
+def check_in_interval(interval_row):
+    if interval_row is None:
+        return False
+    interval = interval_row.split()
+    now = datetime.now().time()
+    min_time = map(int, interval[-3].split(':'))
+    max_time = map(int, interval[-1].split(':'))
+    if not time(next(min_time), next(min_time)) < now < time(next(max_time), next(max_time)):
+        return False
+    return True
+
+
+def check_out_interval(interval_row):
+    if interval_row is None:
+        return False
+    interval = interval_row.split()
+    now = datetime.now().time()
+    try:
+        max_time = map(int, interval[-1].split(':'))
+        if now > time(next(max_time), next(max_time)):
+            return False
+    except Exception:
+        return False
+    return True
+
+
+def check_time(done_at):
+    if done_at is None:
+        return False
+    done_time = datetime.fromtimestamp(int(done_at[:10]))
+    done_time = datetime(year=done_time.year,
+                         month=done_time.month,
+                         day=done_time.day,
+                         hour=done_time.hour,
+                         minute=done_time.minute)
+
+    now = datetime.now()
+    now = datetime(year=now.year,
+                   month=now.month,
+                   day=now.day,
+                   hour=now.hour,
+                   minute=now.minute)
+    if done_time != now:
+        return False
+    return True
+
+
+def join_message(status: str, messages: list):
+    result = list()
+    new_message = f'<b>{status}</b>\n\n\n'
+    cnt = 1
+    for message in messages:
+        new_message += message + '\n\n'
+        if cnt % 20 == 0:
+            result.append(new_message)
+            new_message = f'<b>{status}</b>\n\n\n'
+        cnt += 1
+    if new_message:
+        result.append(new_message)
+    return result
+
+
+def status_435390():
+    """
+    Водитель назначен. Привоз
+    Проверка каждые 2 часа.
+    """
+    result = list()
+    statuses = [435390]
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            check_date = check_date_today(custom_fields.get('f1482265'))
+            check_interval = check_in_interval(custom_fields.get('f1620345'))
+            if not check_interval or not check_date:
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Тип курьера</b>: {order.custom_fields.get("f1620346")}\n'
+                    f'<b>Курьер</b>: {custom_fields.get("f1482267")}\n'
+                    f'<b>Дата привоза</b>: {custom_fields.get("f1482265") if check_date else "Нарушение"}\n'
+                    f'<b>Интервалы привоза</b>: {custom_fields.get("f1620345") if check_interval else "Нарушение"}\n'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('1. Привоз назначен.Привоз', result)
+    return messages
+
+
+def status_323199():
+    """
+    Привоз назначен и Привоз назначен. Выезд
+    Проверка каждые 10 минут
+    """
+    statuses = [323199, 338355]
+    result = list()
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            if custom_fields.get("f3592120") == 'Нет' or custom_fields.get("f3592120") is None:
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Заказ подтверждён</b>: Нет'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('2. Подтверждение', result)
+    return messages
+
+
+def status_435391():
+    """
+    Водитель назначен. Отвоз
+    Проверка 4 раза: 1. в 14:00, 2. в 16:00, 3. в 12:00, 4. в 20:00
+    """
+    statuses = [435391]
+    result = list()
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            check_time = check_out_interval(custom_fields.get("f1620345"))
+            if not check_time:
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Дата отвоза:</b> {custom_fields.get("f1569111")}\n'
+                    f'<b>Интервалы привоза</b>: Нарушение\n'
+                    f'<b>Курьер отвоза:</b> {custom_fields.get("f1569113")}'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('3. Водитель назначен.Отвоз', result)
+    return messages
+
+
+def status_960847():
+    """
+    Проблемная доставка
+    Проверка 4 раза в день. 1. 9:00, 2. 13:00, 3. 17:00, 4. 21:00
+    """
+    statuses = [960847]
+    result = list()
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            result.append(
+                f'<b>Заказ №</b>: {order.id_label}\n'
+                f'<b>Статус</b>: {order.status.get("name")}\n'
+                f'<b>Курьер отвоза:</b> {custom_fields.get("f1569113")}\n'
+                f'<b>Тип изделия:</b> {custom_fields.get("f1070009")}\n'
+                f'<b>Сумма:</b> {custom_fields.get("f")}'  # ?
+            )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('4. Проблемная доставка', result)
+    return messages
+
+
+def status_324942():
+    """
+    Забрал обрудование
+    Проверка 5 раз в день: 1. 9:00, 2. 13:00, 3. 17:00, 4. 21:00, 5. 23:00
+    """
+    result = list()
+    statuses = [324942]
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            check_date = check_date_tomorrow(custom_fields.get('f1482265'))
+            if not check_date:
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Курьер</b>: {custom_fields.get("f1482267")}\n'
+                    f'<b>Дата привоза</b>: {custom_fields.get("f1482265")}'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('5. Забрал', result)
+    return messages
+
+
+def status_355259():
+    """
+    Доставка.Октябрьское поле
+    Проверка 2 раза: 1. 17:00, 2. 22:00
+    """
+    result = list()
+    statuses = [355259]
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            check_date = check_date_today(custom_fields.get('f1482265'))
+            if check_date or custom_fields.get('f1482265') is None:
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Дата отвоза:</b> {custom_fields.get("f1569113") or "Неуказана"}\n'
+                    f'<b>Курьер отвоза:</b> {custom_fields.get("f1569111") or "Неуказан"}'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('6. Доставка. Октябрьское поле', result)
+    return messages
+
+
+def status_349784():
+    """
+    Отдал товар
+    Проверка 2 раза: 1. 17:00, 2. 22:00
+    """
+    result = list()
+    statuses = [349784]
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            check_date = check_date_today(custom_fields.get('f1569111'))
+            if not check_date:
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Дата отвоза</b>: {custom_fields.get("f1569111")}\n'
+                    f'<b>Курьер отвоза</b>: {custom_fields.get("f1569113")}'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('7. Отдал товар', result)
+    return messages
+
+
+def status_349471():
+    """
+    СКК. Не выходит на связь📵, СКК. Клиент сливается🚽, СКК. Подтверждение доставки✔️, СКК. Уточнение интервала🕙,
+    СКК. Уточнение адреса❓, СКК. Уточнение км от МКАД🌉
+    Проверка каждый час
+    """
+    result = list()
+    statuses = [349471, 349470, 349473, 349472, 349474, 349475]
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            if not check_time(order.done_at):
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Дата отвоза</b>: {custom_fields.get("f1569111")}\n'
+                    f'<b>Курьер отвоза</b>: {custom_fields.get("f1569113")}'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('8. СКК', result)
+    return messages
+
+
+def status_324856():
+    """
+    Предварительный заказ ЗЧ, Ожидаются запчасти
+    Проверка 2 раза: 1. 9:00, 2. 19:00
+    """
+    statuses = [324856, 323209]
+    result = list()
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            check_date = check_date_today(custom_fields.get('f1465924'))
+            count_transfers = custom_fields.get('f2055930')
+            count_transfers = count_transfers if count_transfers else 0
+            if not check_date or count_transfers > 3:
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Дата поставки запчастей</b>: {custom_fields.get("f1465924") or "Неуказана"}\n'
+                    f'<b>Количество переносов</b>: {count_transfers}'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('10. Ожидаются запчасти', result)
+    return messages
