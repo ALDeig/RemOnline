@@ -135,7 +135,7 @@ def join_message(status: str, messages: list):
 
 
 def get_types():
-    with open('orders/types.json', 'r', encoding='utf-8') as file:
+    with open('app/orders/types.json', 'r', encoding='utf-8') as file:
         types_ = json.load(file)
     result = [int(key) for key, value in types_.items() if value == 1]
     return result
