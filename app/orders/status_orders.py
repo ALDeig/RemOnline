@@ -1,4 +1,6 @@
+import json
 from datetime import datetime, date, time
+import os
 
 from loguru import logger
 import requests
@@ -32,7 +34,9 @@ def get_token():
 
 
 def get_page_orders(page: int, token: str, statuses: list):
-    orders_row = requests.get('https://api.remonline.ru/order/', {"token": token, 'statuses[]': statuses, 'page': page})
+    types_ = get_types()
+    orders_row = requests.get('https://api.remonline.ru/order/',
+                              {"token": token, 'statuses[]': statuses, 'types[]': types_, 'page': page})
     if orders_row.status_code != 200:
         return 'token_invalid'
     try:
@@ -127,6 +131,13 @@ def join_message(status: str, messages: list):
         cnt += 1
     if new_message:
         result.append(new_message)
+    return result
+
+
+def get_types():
+    with open('orders/types.json', 'r', encoding='utf-8') as file:
+        types_ = json.load(file)
+    result = [int(key) for key, value in types_.items() if value == 1]
     return result
 
 
