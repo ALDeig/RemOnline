@@ -19,7 +19,6 @@ async def change_types(call: types.CallbackQuery, callback_data: dict):
     types_ = types_orders.read_types()
     changed_type = callback_data.get('id_button')
     value = callback_data.get('value')
-    print('Тип', type(value))
     new_value = 1 if value == '0' else 0
     types_[changed_type] = new_value
     keyboard = create_keyboard_types(types_)
