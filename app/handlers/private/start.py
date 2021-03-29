@@ -9,7 +9,7 @@ from app.keyboards.reply.check_order import keyboard
 @dp.message_handler(CommandStart())
 async def command_start_handler(msg: types.Message):
     await msg.answer(f'Hello, {msg.from_user.full_name}!', reply_markup=keyboard)
-    print(msg.from_user.id)
+    # print(msg.from_user.id)
     # await dp.bot.send_message(chat_id=-1001175182664, text='OK')
 
 

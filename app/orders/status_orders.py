@@ -122,6 +122,8 @@ def check_time(done_at):
 def join_message(status: str, messages: list):
     result = list()
     new_message = f'<b>{status}</b>\n\n\n'
+    if len(messages) == 0:
+        return [new_message.strip() + ' - нарушений нет.']
     cnt = 1
     for message in messages:
         new_message += message + '\n\n'
@@ -153,6 +155,7 @@ def status_435390():
     pages = 1
     while cnt <= pages:
         orders = get_page_orders(cnt, token, statuses)
+        print(orders)
         if orders == 'token_invalid':
             token = get_token()
             orders = get_page_orders(cnt, token, statuses)
@@ -171,7 +174,7 @@ def status_435390():
                 )
         pages = get_count_pages(orders.count_orders)
         cnt += 1
-    messages = join_message('1. Привоз назначен.Привоз', result)
+    messages = join_message('1. Водитель назначен.Привоз', result)
     return messages
 
 
@@ -221,8 +224,8 @@ def status_435391():
             orders = get_page_orders(cnt, token, statuses)
         for order in orders.data:
             custom_fields = order.custom_fields
-            check_time = check_out_interval(custom_fields.get("f1620345"))
-            if not check_time:
+            check_time_order = check_out_interval(custom_fields.get("f1620345"))
+            if not check_time_order:
                 result.append(
                     f'<b>Заказ №</b>: {order.id_label}\n'
                     f'<b>Статус</b>: {order.status.get("name")}\n'

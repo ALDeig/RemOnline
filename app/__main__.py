@@ -12,7 +12,7 @@ from app import middlewares, filters, handlers
 
 async def on_startup(dispatcher: Dispatcher):
     await utils.setup_default_commands(dispatcher)
-    await utils.notify_admins(config.ADMIN_IDS)
+    # await utils.notify_admins(config.ADMIN_IDS)
 
 
 # async def send_status_435390():
