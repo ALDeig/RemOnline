@@ -2,3 +2,14 @@
 venv
 .idea
 app/orders/types.json
+app/__pycache__/
+app/filters/__pycache__/
+app/handlers/__pycache__/
+app/handlers/errors/__pycache__/
+app/handlers/private/__pycache__/
+app/keyboards/__pycache__/
+app/keyboards/inline/__pycache__/
+app/keyboards/reply/__pycache__/
+app/middlewares/__pycache__/
+app/orders/__pycache__/
+app/utils/__pycache__/
