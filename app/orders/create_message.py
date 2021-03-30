@@ -89,36 +89,31 @@ async def send_status_349471():
         await dp.bot.send_message(chat_id=config.ID_CHANNEL, text=message)
 
 
+async def send_status_325119():
+    list_message = orders.status_325119()
+    for message in list_message:
+        time.sleep(randint(min_, max_))
+        await dp.bot.send_message(chat_id=config.ID_CHANNEL, text=message)
+
+
 async def send_status_324856():
     list_message = orders.status_324856()
-    cnt = 1
     for message in list_message:
-        # cnt += 1
-        # if cnt % 3 == 0:
         time.sleep(randint(min_, max_))
         await dp.bot.send_message(chat_id=config.ID_CHANNEL, text=message)
 
 
 async def hand_send():
     await send_status_435390()
-    time.sleep(2)
     await send_status_323199()
-    time.sleep(2)
     await send_status_435391()
-    time.sleep(2)
     await send_status_960847()
-    time.sleep(2)
     await send_status_324942()
-    time.sleep(2)
     await send_status_355259()
-    time.sleep(2)
     await send_status_349784()
-    time.sleep(2)
     await send_status_349471()
-    time.sleep(2)
+    await send_status_325119()
     await send_status_324856()
-    time.sleep(2)
-    await send_status_355259()
 
 
 scheduler = AsyncIOScheduler()
@@ -136,12 +131,16 @@ scheduler.add_job(send_status_960847, 'cron', hour=17)
 scheduler.add_job(send_status_960847, 'cron', hour=21)
 scheduler.add_job(send_status_324942, 'cron', hour=9)
 scheduler.add_job(send_status_324942, 'cron', hour=13)
-scheduler.add_job(send_status_324942, 'cron', hour=17, minute=2)
+scheduler.add_job(send_status_324942, 'cron', hour=17)
 scheduler.add_job(send_status_324942, 'cron', hour=21)
 scheduler.add_job(send_status_324942, 'cron', hour=23)
-scheduler.add_job(send_status_355259, 'cron', hour=17, minute=4)
+scheduler.add_job(send_status_355259, 'cron', hour=17)
 scheduler.add_job(send_status_355259, 'cron', hour=22)
-scheduler.add_job(send_status_349784, 'cron', hour=17, minute=6)
+scheduler.add_job(send_status_349784, 'cron', hour=17)
 scheduler.add_job(send_status_349784, 'cron', hour=22)
 scheduler.add_job(send_status_324856, 'cron', hour=9)
 scheduler.add_job(send_status_324856, 'cron', hour=19)
+scheduler.add_job(send_status_325119, 'cron', hour=9)
+scheduler.add_job(send_status_325119, 'cron', hour=12)
+scheduler.add_job(send_status_325119, 'cron', hour=17)
+scheduler.add_job(send_status_325119, 'cron', hour=21)

@@ -8,10 +8,14 @@ from pydantic import BaseModel, ValidationError, Field
 
 from app import config
 
+# WORK_PATH = 'orders/types.json'
+WORK_PATH = 'app/orders/types.json'
+
 
 class Orders(BaseModel):
     id: str
     done_at: str = None
+    status_deadline: str = None
     created_at: str
     status: dict
     custom_fields: dict
@@ -58,6 +62,16 @@ def check_date_today(date_check):
     get_date = map(int, date_check.split('.'))
     need_date = date(day=next(get_date), month=next(get_date), year=next(get_date))
     if need_date != date.today():
+        return False
+    return True
+
+
+def check_date_passed(date_check):
+    if date_check is None:
+        return False
+    get_date = map(int, date_check.split('.'))
+    need_date = date(day=next(get_date), month=next(get_date), year=next(get_date))
+    if need_date < date.today():
         return False
     return True
 
@@ -137,7 +151,7 @@ def join_message(status: str, messages: list):
 
 
 def get_types():
-    with open('app/orders/types.json', 'r', encoding='utf-8') as file:
+    with open(WORK_PATH, 'r', encoding='utf-8') as file:
         types_ = json.load(file)
     result = [int(key) for key, value in types_.items() if value == 1]
     return result
@@ -393,6 +407,36 @@ def status_349471():
     return messages
 
 
+def status_325119():
+    """Запрос в закупку	Поле "Просрочено" если есть значение, оно и является нарушением"""
+    statuses = [325119]
+    result = list()
+    token = get_token()
+    cnt = 1
+    pages = 1
+    while cnt <= pages:
+        orders = get_page_orders(cnt, token, statuses)
+        if orders == 'token_invalid':
+            token = get_token()
+            orders = get_page_orders(cnt, token, statuses)
+        for order in orders.data:
+            custom_fields = order.custom_fields
+            if order.status_deadline and datetime.fromtimestamp(int(order.status_deadline[:10])) < datetime.now():
+                deadline_time = datetime.fromtimestamp(int(order.status_deadline[:10]))
+                deadline = datetime.now() - deadline_time
+                days = divmod(deadline.total_seconds(), (3600 * 24))
+                hours = divmod(days[1], 3600)[0]
+                result.append(
+                    f'<b>Заказ №</b>: {order.id_label}\n'
+                    f'<b>Статус</b>: {order.status.get("name")}\n'
+                    f'<b>Просрочено</b>:\nДней - {int(days[0])} Часов - {int(hours)}'
+                )
+        pages = get_count_pages(orders.count_orders)
+        cnt += 1
+    messages = join_message('9. Запрос в закупку', result)
+    return messages
+
+
 def status_324856():
     """
     Предварительный заказ ЗЧ, Ожидаются запчасти
@@ -410,7 +454,7 @@ def status_324856():
             orders = get_page_orders(cnt, token, statuses)
         for order in orders.data:
             custom_fields = order.custom_fields
-            check_date = check_date_today(custom_fields.get('f1465924'))
+            check_date = check_date_passed(custom_fields.get('f1465924'))
             count_transfers = custom_fields.get('f2055930')
             count_transfers = count_transfers if count_transfers else 0
             if not check_date or count_transfers > 3:

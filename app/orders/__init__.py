@@ -7,7 +7,8 @@ from .status_orders import (
     status_324942,
     status_435391,
     status_323199,
-    status_435390
+    status_435390,
+    status_325119
 )
 from .create_message import scheduler
 
@@ -21,5 +22,6 @@ __all__ = [
     'status_435391',
     'status_323199',
     'status_435390',
+    'status_325119',
     'scheduler'
 ]
