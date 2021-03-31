@@ -245,14 +245,14 @@ def status_435391():
             orders = get_page_orders(cnt, token, statuses)
         for order in orders.data:
             custom_fields = order.custom_fields
-            check_time_order = check_out_interval(custom_fields.get("f1620345"))
+            check_time_order = check_out_interval(custom_fields.get("f2045048"))
             if not check_time_order:
                 result.append(
                     f'<b>Заказ №</b>: {order.id_label}\n'
                     f'<b>Статус</b>: {order.status.get("name")}\n'
                     f'<b>Дата отвоза:</b> {custom_fields.get("f1569111")}\n'
-                    f'<b>Интервалы привоза</b>: Нарушение\n'
-                    f'Интервал фактически: {custom_fields.get("f1620345")}'
+                    f'<b>Интервалы доставки</b>: Нарушение\n'
+                    f'Интервал фактически: {custom_fields.get("f2045048")}\n'
                     f'<b>Курьер отвоза:</b> {custom_fields.get("f1569113")}'
                 )
         pages = get_count_pages(orders.count_orders)
