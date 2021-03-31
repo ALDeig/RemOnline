@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, date, time
-import os
+import pytz
+import re
 
 from loguru import logger
 import requests
@@ -10,6 +11,7 @@ from app import config
 
 # WORK_PATH = 'orders/types.json'
 WORK_PATH = 'app/orders/types.json'
+TZ = pytz.timezone('Europe/Moscow')
 
 
 class Orders(BaseModel):
@@ -89,11 +91,15 @@ def check_date_tomorrow(date_row):
 def check_in_interval(interval_row):
     if interval_row is None:
         return False
-    interval = interval_row.split()
-    now = datetime.now().time()
-    min_time = map(int, interval[-3].split(':'))
-    max_time = map(int, interval[-1].split(':'))
-    if not time(next(min_time), next(min_time)) < now < time(next(max_time), next(max_time)):
+    interval = re.findall(r'\d+:\d+', interval_row)
+    now = datetime.now(tz=TZ).time()
+    try:
+        min_time = map(int, interval[0].split(':'))
+        max_time = map(int, interval[-1].split(':'))
+        if not time(next(min_time), next(min_time)) < now < time(next(max_time), next(max_time)):
+            return False
+    except Exception as e:
+        logger.error(e)
         return False
     return True
 
@@ -101,13 +107,15 @@ def check_in_interval(interval_row):
 def check_out_interval(interval_row):
     if interval_row is None:
         return False
-    interval = interval_row.split()
-    now = datetime.now().time()
+    interval = re.findall(r'\d+:\d+', interval_row)
+    now = datetime.now(tz=TZ).time()
     try:
         max_time = map(int, interval[-1].split(':'))
-        if now > time(next(max_time), next(max_time)):
+        valid_time = time(next(max_time), next(max_time))
+        if now > valid_time:
             return False
-    except Exception:
+    except Exception as e:
+        logger.error(e)
         return False
     return True
 
@@ -122,7 +130,7 @@ def check_time(done_at):
                          hour=done_time.hour,
                          minute=done_time.minute)
 
-    now = datetime.now()
+    now = datetime.now(tz=TZ)
     now = datetime(year=now.year,
                    month=now.month,
                    day=now.day,
@@ -169,7 +177,6 @@ def status_435390():
     pages = 1
     while cnt <= pages:
         orders = get_page_orders(cnt, token, statuses)
-        print(orders)
         if orders == 'token_invalid':
             token = get_token()
             orders = get_page_orders(cnt, token, statuses)
@@ -245,6 +252,7 @@ def status_435391():
                     f'<b>Статус</b>: {order.status.get("name")}\n'
                     f'<b>Дата отвоза:</b> {custom_fields.get("f1569111")}\n'
                     f'<b>Интервалы привоза</b>: Нарушение\n'
+                    f'Интервал фактически: {custom_fields.get("f1620345")}'
                     f'<b>Курьер отвоза:</b> {custom_fields.get("f1569113")}'
                 )
         pages = get_count_pages(orders.count_orders)
