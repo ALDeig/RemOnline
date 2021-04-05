@@ -88,20 +88,20 @@ def check_date_tomorrow(date_row):
     return True
 
 
-def check_in_interval(interval_row):
-    if interval_row is None:
-        return False
-    interval = re.findall(r'\d+:\d+', interval_row)
-    now = datetime.now(tz=TZ).time()
-    try:
-        min_time = map(int, interval[0].split(':'))
-        max_time = map(int, interval[-1].split(':'))
-        if time(next(min_time), next(min_time)) < now < time(next(max_time), next(max_time)):
-            return True
-    except Exception as e:
-        logger.error(e)
-        return False
-    return False
+# def check_in_interval(interval_row):
+#     if interval_row is None:
+#         return False
+#     interval = re.findall(r'\d+:\d+', interval_row)
+#     now = datetime.now(tz=TZ).time()
+#     try:
+#         min_time = map(int, interval[0].split(':'))
+#         max_time = map(int, interval[-1].split(':'))
+#         if time(next(min_time), next(min_time)) < now < time(next(max_time), next(max_time)):
+#             return True
+#     except Exception as e:
+#         logger.error(e)
+#         return False
+#     return False
 
 
 def check_out_interval(interval_row):
@@ -183,7 +183,7 @@ def status_435390():
         for order in orders.data:
             custom_fields = order.custom_fields
             check_date = check_date_today(custom_fields.get('f1482265'))
-            check_interval = check_in_interval(custom_fields.get('f1620345'))
+            check_interval = check_out_interval(custom_fields.get('f1620345'))
             if not check_interval or not check_date:
                 result.append(
                     f'<b>Заказ №</b>: {order.id_label}\n'
@@ -199,6 +199,7 @@ def status_435390():
     messages = join_message('1. Водитель назначен.Привоз', result)
     return messages
 
+print(*status_435390(), sep='\n')
 
 def status_323199():
     """
