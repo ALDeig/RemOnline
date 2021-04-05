@@ -96,12 +96,12 @@ def check_in_interval(interval_row):
     try:
         min_time = map(int, interval[0].split(':'))
         max_time = map(int, interval[-1].split(':'))
-        if not time(next(min_time), next(min_time)) < now < time(next(max_time), next(max_time)):
-            return False
+        if time(next(min_time), next(min_time)) < now < time(next(max_time), next(max_time)):
+            return True
     except Exception as e:
         logger.error(e)
         return False
-    return True
+    return False
 
 
 def check_out_interval(interval_row):
@@ -192,6 +192,7 @@ def status_435390():
                     f'<b>Курьер</b>: {custom_fields.get("f1482267")}\n'
                     f'<b>Дата привоза</b>: {custom_fields.get("f1482265") if check_date else "Нарушение"}\n'
                     f'<b>Интервалы привоза</b>: {custom_fields.get("f1620345") if check_interval else "Нарушение"}\n'
+                    f'<b>Интервал:</b> {custom_fields.get("f1620345")}'
                 )
         pages = get_count_pages(orders.count_orders)
         cnt += 1
@@ -202,7 +203,7 @@ def status_435390():
 def status_323199():
     """
     Привоз назначен и Привоз назначен. Выезд
-    Проверка каждые 10 минут
+    Проверка каждые 10 минут 65819312edc03520c7967088a31f9a128330a162
     """
     statuses = [323199, 338355]
     result = list()
