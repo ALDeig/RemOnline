@@ -1,7 +1,7 @@
 import json
 
-# WORK_PATH = 'orders/types.json'
-WORK_PATH = 'app/orders/types.json'
+WORK_PATH = 'orders/types.json'
+# WORK_PATH = 'app/orders/types.json'
 
 
 def read_types() -> dict:
