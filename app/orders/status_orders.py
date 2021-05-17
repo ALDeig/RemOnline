@@ -9,8 +9,8 @@ from pydantic import BaseModel, ValidationError, Field
 
 from app import config
 
-WORK_PATH = 'orders/types.json'
-# WORK_PATH = 'app/orders/types.json'
+# WORK_PATH = 'orders/types.json'
+WORK_PATH = 'app/orders/types.json'
 TZ = pytz.timezone('Europe/Moscow')
 
 
