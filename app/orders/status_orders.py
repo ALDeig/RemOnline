@@ -9,8 +9,8 @@ from pydantic import BaseModel, ValidationError, Field
 
 from app import config
 
-WORK_PATH = 'orders/types.json'
-# WORK_PATH = 'app/orders/types.json'
+# WORK_PATH = 'orders/types.json'
+WORK_PATH = 'app/orders/types.json'
 TZ = pytz.timezone('Europe/Moscow')
 
 
@@ -199,7 +199,6 @@ def status_435390():
     messages = join_message('1. Водитель назначен.Привоз', result)
     return messages
 
-# print(*status_435390(), sep='\n')
 
 def status_323199():
     """
